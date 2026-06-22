@@ -20,6 +20,7 @@ const client = new MongoClient(uri, {
 const run = async () => {
     try {
         const database = client.db(process.env.DB_NAME);
+        const usersCollections = database.collection(process.env.DB_USERS);
         const artWorkCollections = database.collection(process.env.DB_ALL_COLLECTION);
 
         app.post('/api/artwork', async (req, res) => {
@@ -45,6 +46,12 @@ const run = async () => {
             res.send(result)
         })
 
+        app.get('/api/artwork/:id', async (req, res) => {
+            const { id } = req.params
+            const user = await artWorkCollections.findOne({ _id: new ObjectId(id) })
+            res.send(user)
+        })
+
         app.patch('/api/artwork/:id', async (req, res) => {
             const { id } = req.params
             const updatedDAta = req.body
@@ -59,6 +66,22 @@ const run = async () => {
             const { id } = req.params
             const result = await artWorkCollections.deleteOne({ _id: new ObjectId(id) })
             res.json(result)
+        })
+
+
+
+        // app.get('/api/user', async (req, res) => {
+        //     const query = {}
+        //     if (req.query.userId) {
+        //         query._id = new ObjectId(req.query.userId)
+        //     }
+        //     const result = await usersCollections.find(query).toArray()
+        //     res.send(result)
+        // })
+        app.get('/api/user/:id', async (req, res) => {
+            const { id } = req.params
+            const user = await usersCollections.findOne({ _id: new ObjectId(id) })
+            res.send(user)
         })
 
 
