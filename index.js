@@ -22,6 +22,7 @@ const run = async () => {
         const database = client.db(process.env.DB_NAME);
         const usersCollections = database.collection(process.env.DB_USERS);
         const artWorkCollections = database.collection(process.env.DB_ALL_COLLECTION);
+        const commentsCollections = database.collection(process.env.DB_COMMENTS_COLLECTION);
 
         app.post('/api/artwork', async (req, res) => {
             const artWorkData = req.body
@@ -82,6 +83,27 @@ const run = async () => {
             const { id } = req.params
             const user = await usersCollections.findOne({ _id: new ObjectId(id) })
             res.send(user)
+        })
+
+
+        app.post('/api/comments', async (req, res) => {
+            const commentsData = req.body
+            const newComments = {
+                ...commentsData,
+                createdAt: new Date()
+            }
+            const result = await commentsCollections.insertOne(newComments)
+            res.json(result)
+        })
+
+        app.get('/api/comments', async (req, res) => {
+            const query = {}
+            if (req.query.artWorkId) {
+                query.artWorkId = req.query.artWorkId
+            }
+            const cursor = commentsCollections.find(query)
+            const result = await cursor.toArray()
+            res.send(result)
         })
 
 
