@@ -127,6 +127,21 @@ const run = async () => {
             }
         });
 
+        app.get('/orders', async (req, res) => {
+            const query = {}
+            if (req.query.buyerId) {
+                query.buyerId = req.query.buyerId
+            }
+            if (req.query.artworkId && req.query.artworkId !== "undefined") {
+                query.artworkId = req.query.artworkId
+            }
+            const cursor = ordersCollection.find(query)
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
+
+
 
 
         app.post('/api/artwork', async (req, res) => {
