@@ -6,6 +6,10 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = process.env.MONGODB_URI;
 const port = process.env.PORT || 5000;
 
+const Stripe = require("stripe");
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
+
 app.use(cors())
 app.use(express.json())
 
@@ -23,6 +27,52 @@ const run = async () => {
         const usersCollections = database.collection(process.env.DB_USERS);
         const artWorkCollections = database.collection(process.env.DB_ALL_COLLECTION);
         const commentsCollections = database.collection(process.env.DB_COMMENTS_COLLECTION);
+
+        app.post("/create-checkout-session", async (req, res) => {
+            console.log("BODY:", req.body);
+            try {
+                const { artName, price } = req.body;
+
+                const session = await stripe.checkout.sessions.create({
+                    payment_method_types: ["card"],
+
+                    line_items: [
+                        {
+                            price_data: {
+                                currency: "usd",
+
+                                product_data: {
+                                    name: artName
+                                },
+
+                                unit_amount: price * 100
+                            },
+
+                            quantity: 1
+                        }
+                    ],
+
+                    mode: "payment",
+
+                    success_url: `${process.env.NEXT_PUBLIC_CLIENT_URL}/payment-success`,
+
+                    cancel_url: `${process.env.NEXT_PUBLIC_CLIENT_URL}/payment-cancel`
+                });
+
+                res.send({
+                    url: session.url
+                });
+
+            } catch (error) {
+                console.log(error);
+
+                res.status(500).send({
+                    message: "Payment failed"
+                });
+            }
+        });
+
+
 
         app.post('/api/artwork', async (req, res) => {
             const artWorkData = req.body
