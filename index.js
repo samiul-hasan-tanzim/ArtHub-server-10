@@ -28,6 +28,8 @@ const run = async () => {
         const artWorkCollections = database.collection(process.env.DB_ALL_COLLECTION);
         const commentsCollections = database.collection(process.env.DB_COMMENTS_COLLECTION);
         const ordersCollection = database.collection(process.env.DB_ORDERS_COLLECTION);
+        const subscriptionPlansCollection = database.collection(process.env.DB_SUBSCRIPTION_PLAN_COLLECTION);
+        const subscriptionCollection = database.collection(process.env.DB_SUBSCRIPTION_COLLECTION);
 
         app.post("/create-checkout-session", async (req, res) => {
             // console.log("BODY:", req.body);
@@ -140,6 +142,34 @@ const run = async () => {
             res.send(result)
         })
 
+        app.get('/api/plans', async (req, res) => {
+            const query = {}
+            if (req.query.plan_id) {
+                query.id = req.query.plan_id
+            }
+            const result = await subscriptionPlansCollection.findOne(query)
+
+            res.send(result)
+        })
+
+        app.post('/api/subscriptions', async (req, res) => {
+            console.log("SUB API HIT");
+            const data = req.body
+            const subsInfo = {
+                ...data,
+                createdAt: new Date()
+            }
+            const result = await subscriptionCollection.insertOne(subsInfo)
+            // console.log(result)
+            const filter = { email: data.email };
+            const updateDocument = {
+                $set: {
+                    plan: data.planId,
+                },
+            };
+            const updateResult = await usersCollections.updateOne(filter, updateDocument)
+            res.send(updateResult)
+        })
 
 
 
