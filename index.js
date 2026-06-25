@@ -27,11 +27,12 @@ const run = async () => {
         const usersCollections = database.collection(process.env.DB_USERS);
         const artWorkCollections = database.collection(process.env.DB_ALL_COLLECTION);
         const commentsCollections = database.collection(process.env.DB_COMMENTS_COLLECTION);
+        const ordersCollection = database.collection(process.env.DB_ORDERS_COLLECTION);
 
         app.post("/create-checkout-session", async (req, res) => {
-            console.log("BODY:", req.body);
+            // console.log("BODY:", req.body);
             try {
-                const { artName, price } = req.body;
+                const { artName, price, buyerId, buyerEmail, artworkId, artistId, artistName } = req.body;
 
                 const session = await stripe.checkout.sessions.create({
                     payment_method_types: ["card"],
@@ -54,7 +55,17 @@ const run = async () => {
 
                     mode: "payment",
 
-                    success_url: `${process.env.NEXT_PUBLIC_CLIENT_URL}/payment-success`,
+                    metadata: {
+                        buyerId,
+                        buyerEmail,
+                        artworkId,
+                        artworkName: artName,
+                        artistId,
+                        artistName,
+                        price: String(price)
+                    },
+
+                    success_url: `${process.env.NEXT_PUBLIC_CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
 
                     cancel_url: `${process.env.NEXT_PUBLIC_CLIENT_URL}/payment-cancel`
                 });
@@ -68,6 +79,50 @@ const run = async () => {
 
                 res.status(500).send({
                     message: "Payment failed"
+                });
+            }
+        });
+
+        app.get("/checkout-session/:sessionId", async (req, res) => {
+            try {
+                const { sessionId } = req.params;
+
+                const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+                res.send(session);
+
+            } catch (error) {
+                console.log(error);
+
+                res.status(500).send({
+                    message: "Failed to get session"
+                });
+            }
+        });
+
+        app.post("/orders", async (req, res) => {
+            try {
+                const orderData = req.body;
+
+                const alreadyExists = await ordersCollection.findOne({
+                    stripeSessionId: orderData.stripeSessionId
+                });
+
+                if (alreadyExists) {
+                    return res.send({
+                        message: "Order already saved"
+                    });
+                }
+
+                const result = await ordersCollection.insertOne(orderData);
+
+                res.send(result);
+
+            } catch (error) {
+                console.log(error);
+
+                res.status(500).send({
+                    message: "Failed to save order"
                 });
             }
         });
