@@ -208,18 +208,79 @@ const run = async () => {
             res.json(result)
         })
 
-        app.get('/api/artwork', async (req, res) => {
-            const query = {}
-            if (req.query.artistId) {
-                query.artistId = req.query.artistId
+        app.get("/api/artwork", async (req, res) => {
+            const query = {};
+
+            const {
+                artistId,
+                status,
+                search,
+                category,
+                sort,
+                page
+            } = req.query;
+
+            if (artistId) {
+                query.artistId = artistId;
             }
-            if (req.query.status) {
-                query.status = req.query.status
+
+            if (status) {
+                query.status = status;
             }
-            const cursor = artWorkCollections.find(query)
-            const result = await cursor.toArray()
-            res.send(result)
-        })
+
+            if (search) {
+                query.$or = [
+                    {
+                        artName: {
+                            $regex: search,
+                            $options: "i"
+                        }
+                    },
+                    {
+                        artistName: {
+                            $regex: search,
+                            $options: "i"
+                        }
+                    }
+                ];
+            }
+
+            if (category) {
+                query.category = category;
+            }
+
+            let sortOption = {
+                createdAt: -1
+            };
+
+            if (sort === "low") {
+                sortOption = {
+                    price: 1
+                };
+            }
+
+            if (sort === "high") {
+                sortOption = {
+                    price: -1
+                };
+            }
+
+            const currentPage = Number(page) || 1;
+            const limit = 9;
+            const totalArtworks = await artWorkCollections.countDocuments(query);
+            const totalPages = Math.ceil(totalArtworks / limit);
+            const result = await artWorkCollections
+                .find(query)
+                .sort(sortOption)
+                .skip((currentPage - 1) * limit)
+                .limit(limit)
+                .toArray();
+
+            res.send({
+                artworks: result,
+                totalPages
+            });
+        });
 
         app.get('/api/artwork/:id', async (req, res) => {
             const { id } = req.params;
