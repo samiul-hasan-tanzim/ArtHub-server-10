@@ -131,16 +131,40 @@ const run = async () => {
 
         app.get('/orders', async (req, res) => {
             const query = {}
+
             if (req.query.buyerId) {
                 query.buyerId = req.query.buyerId
+            }
+            if (req.query.artistId) {
+                query.artistId = req.query.artistId
             }
             if (req.query.artworkId && req.query.artworkId !== "undefined") {
                 query.artworkId = req.query.artworkId
             }
-            const cursor = ordersCollection.find(query)
-            const result = await cursor.toArray()
+
+            const result = await ordersCollection.find(query).toArray()
             res.send(result)
         })
+
+        app.delete("/orders/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+
+                const result = await ordersCollection.deleteOne({
+                    _id: new ObjectId(id)
+                });
+
+                res.send(result);
+
+            } catch (error) {
+                console.log(error);
+
+                res.status(500).send({
+                    message: "Failed to delete order"
+                });
+            }
+        });
+
 
         app.get('/api/plans', async (req, res) => {
             const query = {}
@@ -198,10 +222,20 @@ const run = async () => {
         })
 
         app.get('/api/artwork/:id', async (req, res) => {
-            const { id } = req.params
-            const user = await artWorkCollections.findOne({ _id: new ObjectId(id) })
-            res.send(user)
-        })
+            const { id } = req.params;
+
+            const artwork = await artWorkCollections.findOne({
+                _id: new ObjectId(id)
+            });
+
+            if (!artwork) {
+                return res.status(404).send({
+                    message: "Artwork not found"
+                });
+            }
+
+            res.send(artwork);
+        });
 
         app.patch('/api/artwork/:id', async (req, res) => {
             const { id } = req.params
@@ -253,6 +287,25 @@ const run = async () => {
             }
             const cursor = commentsCollections.find(query)
             const result = await cursor.toArray()
+            res.send(result)
+        })
+
+
+
+        app.patch('/api/user/:id', async (req, res) => {
+            const { id } = req.params
+            const data = req.body
+
+            const result = await usersCollections.updateOne(
+                { _id: new ObjectId(id) },
+                {
+                    $set: {
+                        name: data.name,
+                        image: data.image
+                    }
+                }
+            )
+
             res.send(result)
         })
 
