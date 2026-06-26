@@ -269,6 +269,74 @@ const run = async () => {
             res.send(user)
         })
 
+        app.get("/api/users", async (req, res) => {
+            const result = await usersCollections.find().toArray();
+            res.send(result);
+        });
+
+        app.patch("/api/users/role/:id", async (req, res) => {
+            const { id } = req.params;
+            const { role } = req.body;
+
+            const result = await usersCollections.updateOne(
+                { _id: new ObjectId(id) },
+                {
+                    $set: { role }
+                }
+            );
+
+            res.send(result);
+        });
+
+        app.patch("/api/user/role/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const { role } = req.body;
+
+                const result = await usersCollections.updateOne(
+                    { _id: new ObjectId(id) },
+                    {
+                        $set: { role }
+                    }
+                );
+
+                res.send(result);
+
+            } catch (error) {
+                console.log(error);
+
+                res.status(500).send({
+                    message: "Failed to update role"
+                });
+            }
+        });
+
+        app.patch("/api/artwork/status/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const { status } = req.body;
+
+                const result = await artWorkCollections.updateOne(
+                    { _id: new ObjectId(id) },
+                    {
+                        $set: {
+                            status
+                        }
+                    }
+                );
+
+                res.send(result);
+
+            } catch (error) {
+                console.log(error);
+
+                res.status(500).send({
+                    message: "Failed to update artwork status"
+                });
+            }
+        });
+
+
 
         app.post('/api/comments', async (req, res) => {
             const commentsData = req.body
