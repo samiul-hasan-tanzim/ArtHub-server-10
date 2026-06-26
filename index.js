@@ -419,6 +419,25 @@ const run = async () => {
             res.send(result)
         })
 
+        app.delete("/api/comments/:id", async (req, res) => {
+            const { id } = req.params;
+            const result = await commentsCollections.deleteOne({
+                _id: new ObjectId(id)
+            });
+            res.send(result);
+        });
+
+        app.patch("/api/comments/:id", async (req, res) => {
+            const { id } = req.params;
+            const { comment } = req.body;
+
+            const result = await commentsCollections.updateOne(
+                { _id: new ObjectId(id) },
+                { $set: { comment } }
+            );
+            res.send(result);
+        });
+
 
 
         app.patch('/api/user/:id', async (req, res) => {
