@@ -7,6 +7,7 @@ const uri = process.env.MONGODB_URI;
 const port = process.env.PORT || 5000;
 
 const Stripe = require("stripe");
+// const { createRemoteJWKSet, jwtVerify } = require('jose-cjs');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 
@@ -21,6 +22,44 @@ const client = new MongoClient(uri, {
     }
 });
 
+
+
+const { createRemoteJWKSet, jwtVerify } = require('jose-cjs');
+const JWKS = createRemoteJWKSet(
+    new URL(`${process.env.NEXT_PUBLIC_CLIENT_URL}/api/auth/jwks`)
+)
+const verifyToken = async (req, res, next) => {
+    const authHeader = req?.headers.authorization
+
+    if (!authHeader) {
+        return res.status(401).json({
+            message: 'Unauthorized'
+        })
+    }
+
+    const token = authHeader.split(' ')[1]
+
+    if (!token) {
+        return res.status(401).json({
+            message: 'Unauthorized'
+        })
+    }
+
+    try {
+        const { payload } = await jwtVerify(token, JWKS)
+        // console.log('1', payload)
+        next()
+    } catch (error) {
+        return res.status(403).json({
+            message: 'Forbidden'
+        })
+    }
+}
+
+
+
+
+
 const run = async () => {
     try {
         const database = client.db(process.env.DB_NAME);
@@ -31,7 +70,7 @@ const run = async () => {
         const subscriptionPlansCollection = database.collection(process.env.DB_SUBSCRIPTION_PLAN_COLLECTION);
         const subscriptionCollection = database.collection(process.env.DB_SUBSCRIPTION_COLLECTION);
 
-        app.post("/create-checkout-session", async (req, res) => {
+        app.post("/create-checkout-session", verifyToken, async (req, res) => {
             // console.log("BODY:", req.body);
             try {
                 const { artName, price, buyerId, buyerEmail, artworkId, artistId, artistName } = req.body;
@@ -77,7 +116,7 @@ const run = async () => {
                 });
 
             } catch (error) {
-                console.log(error);
+                console.log('2', error);
 
                 res.status(500).send({
                     message: "Payment failed"
@@ -94,7 +133,7 @@ const run = async () => {
                 res.send(session);
 
             } catch (error) {
-                console.log(error);
+                console.log('3', error);
 
                 res.status(500).send({
                     message: "Failed to get session"
@@ -102,7 +141,7 @@ const run = async () => {
             }
         });
 
-        app.post("/orders", async (req, res) => {
+        app.post("/orders", verifyToken, async (req, res) => {
             try {
                 const orderData = req.body;
 
@@ -117,11 +156,21 @@ const run = async () => {
                 }
 
                 const result = await ordersCollection.insertOne(orderData);
+                await artWorkCollections.updateOne(
+                    {
+                        _id: new ObjectId(orderData.artworkId)
+                    },
+                    {
+                        $set: {
+                            sold: true
+                        }
+                    }
+                );
 
                 res.send(result);
 
             } catch (error) {
-                console.log(error);
+                console.log('4', error);
 
                 res.status(500).send({
                     message: "Failed to save order"
@@ -129,7 +178,7 @@ const run = async () => {
             }
         });
 
-        app.get('/orders', async (req, res) => {
+        app.get('/orders', verifyToken, async (req, res) => {
             const query = {}
 
             if (req.query.buyerId) {
@@ -146,27 +195,27 @@ const run = async () => {
             res.send(result)
         })
 
-        app.delete("/orders/:id", async (req, res) => {
-            try {
-                const { id } = req.params;
+        // app.delete("/orders/:id", async (req, res) => {
+        //     try {
+        //         const { id } = req.params;
 
-                const result = await ordersCollection.deleteOne({
-                    _id: new ObjectId(id)
-                });
+        //         const result = await ordersCollection.deleteOne({
+        //             _id: new ObjectId(id)
+        //         });
 
-                res.send(result);
+        //         res.send(result);
 
-            } catch (error) {
-                console.log(error);
+        //     } catch (error) {
+        //         console.log(error);
 
-                res.status(500).send({
-                    message: "Failed to delete order"
-                });
-            }
-        });
+        //         res.status(500).send({
+        //             message: "Failed to delete order"
+        //         });
+        //     }
+        // });
 
 
-        app.get('/api/plans', async (req, res) => {
+        app.get('/api/plans', verifyToken, async (req, res) => {
             const query = {}
             if (req.query.plan_id) {
                 query.id = req.query.plan_id
@@ -176,8 +225,8 @@ const run = async () => {
             res.send(result)
         })
 
-        app.post('/api/subscriptions', async (req, res) => {
-            console.log("SUB API HIT");
+        app.post('/api/subscriptions', verifyToken, async (req, res) => {
+            // console.log("SUB API HIT");
             const data = req.body
             const subsInfo = {
                 ...data,
@@ -198,7 +247,7 @@ const run = async () => {
 
 
 
-        app.post('/api/artwork', async (req, res) => {
+        app.post('/api/artwork', verifyToken, async (req, res) => {
             const artWorkData = req.body
             const newArtWork = {
                 ...artWorkData,
@@ -298,7 +347,7 @@ const run = async () => {
             res.send(artwork);
         });
 
-        app.patch('/api/artwork/:id', async (req, res) => {
+        app.patch('/api/artwork/:id', verifyToken, async (req, res) => {
             const { id } = req.params
             const updatedDAta = req.body
             const result = await artWorkCollections.updateOne(
@@ -308,7 +357,7 @@ const run = async () => {
             res.json(result)
         })
 
-        app.delete('/api/artwork/:id', async (req, res) => {
+        app.delete('/api/artwork/:id', verifyToken, async (req, res) => {
             const { id } = req.params
             const result = await artWorkCollections.deleteOne({ _id: new ObjectId(id) })
             res.json(result)
@@ -324,32 +373,49 @@ const run = async () => {
         //     const result = await usersCollections.find(query).toArray()
         //     res.send(result)
         // })
-        app.get('/api/user/:id', async (req, res) => {
+        app.get('/api/user/:id', verifyToken, async (req, res) => {
             const { id } = req.params
             const user = await usersCollections.findOne({ _id: new ObjectId(id) })
             res.send(user)
         })
 
-        app.get("/api/users", async (req, res) => {
+        app.get("/api/users", verifyToken, async (req, res) => {
             const result = await usersCollections.find().toArray();
             res.send(result);
         });
 
-        app.patch("/api/users/role/:id", async (req, res) => {
-            const { id } = req.params;
-            const { role } = req.body;
+        // app.get("/api/users", async (req, res) => {
+        //     const { email } = req.query;
 
-            const result = await usersCollections.updateOne(
-                { _id: new ObjectId(id) },
-                {
-                    $set: { role }
-                }
-            );
+        //     // single user by email
+        //     if (email) {
+        //         const user = await usersCollections.findOne({
+        //             email
+        //         });
 
-            res.send(result);
-        });
+        //         return res.send(user);
+        //     }
 
-        app.patch("/api/user/role/:id", async (req, res) => {
+        //     // all users
+        //     const result = await usersCollections.find().toArray();
+        //     res.send(result);
+        // });
+
+        // app.patch("/api/users/role/:id", async (req, res) => {
+        //     const { id } = req.params;
+        //     const { role } = req.body;
+
+        //     const result = await usersCollections.updateOne(
+        //         { _id: new ObjectId(id) },
+        //         {
+        //             $set: { role }
+        //         }
+        //     );
+
+        //     res.send(result);
+        // });
+
+        app.patch("/api/user/role/:id", verifyToken, async (req, res) => {
             try {
                 const { id } = req.params;
                 const { role } = req.body;
@@ -364,7 +430,7 @@ const run = async () => {
                 res.send(result);
 
             } catch (error) {
-                console.log(error);
+                console.log('9', error);
 
                 res.status(500).send({
                     message: "Failed to update role"
@@ -372,7 +438,7 @@ const run = async () => {
             }
         });
 
-        app.patch("/api/artwork/status/:id", async (req, res) => {
+        app.patch("/api/artwork/status/:id", verifyToken, async (req, res) => {
             try {
                 const { id } = req.params;
                 const { status } = req.body;
@@ -389,7 +455,7 @@ const run = async () => {
                 res.send(result);
 
             } catch (error) {
-                console.log(error);
+                console.log('10', error);
 
                 res.status(500).send({
                     message: "Failed to update artwork status"
@@ -399,7 +465,7 @@ const run = async () => {
 
 
 
-        app.post('/api/comments', async (req, res) => {
+        app.post('/api/comments', verifyToken, async (req, res) => {
             const commentsData = req.body
             const newComments = {
                 ...commentsData,
@@ -409,7 +475,7 @@ const run = async () => {
             res.json(result)
         })
 
-        app.get('/api/comments', async (req, res) => {
+        app.get('/api/comments', verifyToken, async (req, res) => {
             const query = {}
             if (req.query.artWorkId) {
                 query.artWorkId = req.query.artWorkId
@@ -419,7 +485,7 @@ const run = async () => {
             res.send(result)
         })
 
-        app.delete("/api/comments/:id", async (req, res) => {
+        app.delete("/api/comments/:id", verifyToken, async (req, res) => {
             const { id } = req.params;
             const result = await commentsCollections.deleteOne({
                 _id: new ObjectId(id)
@@ -427,7 +493,7 @@ const run = async () => {
             res.send(result);
         });
 
-        app.patch("/api/comments/:id", async (req, res) => {
+        app.patch("/api/comments/:id", verifyToken, async (req, res) => {
             const { id } = req.params;
             const { comment } = req.body;
 
@@ -440,7 +506,7 @@ const run = async () => {
 
 
 
-        app.patch('/api/user/:id', async (req, res) => {
+        app.patch('/api/user/:id', verifyToken, async (req, res) => {
             const { id } = req.params
             const data = req.body
 
