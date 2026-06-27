@@ -475,7 +475,7 @@ const run = async () => {
             res.json(result)
         })
 
-        app.get('/api/comments', verifyToken, async (req, res) => {
+        app.get('/api/comments', async (req, res) => {
             const query = {}
             if (req.query.artWorkId) {
                 query.artWorkId = req.query.artWorkId
