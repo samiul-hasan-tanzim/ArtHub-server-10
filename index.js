@@ -195,25 +195,6 @@ const run = async () => {
             res.send(result)
         })
 
-        // app.delete("/orders/:id", async (req, res) => {
-        //     try {
-        //         const { id } = req.params;
-
-        //         const result = await ordersCollection.deleteOne({
-        //             _id: new ObjectId(id)
-        //         });
-
-        //         res.send(result);
-
-        //     } catch (error) {
-        //         console.log(error);
-
-        //         res.status(500).send({
-        //             message: "Failed to delete order"
-        //         });
-        //     }
-        // });
-
 
         app.get('/api/plans', verifyToken, async (req, res) => {
             const query = {}
@@ -266,7 +247,8 @@ const run = async () => {
                 search,
                 category,
                 sort,
-                page
+                page,
+                limit
             } = req.query;
 
             if (artistId) {
@@ -315,14 +297,16 @@ const run = async () => {
             }
 
             const currentPage = Number(page) || 1;
-            const limit = 9;
+            const artworkLimit = Number(limit) || 9;
+
             const totalArtworks = await artWorkCollections.countDocuments(query);
-            const totalPages = Math.ceil(totalArtworks / limit);
+            const totalPages = Math.ceil(totalArtworks / artworkLimit);
+
             const result = await artWorkCollections
                 .find(query)
                 .sort(sortOption)
-                .skip((currentPage - 1) * limit)
-                .limit(limit)
+                .skip((currentPage - 1) * artworkLimit)
+                .limit(artworkLimit)
                 .toArray();
 
             res.send({
@@ -365,14 +349,7 @@ const run = async () => {
 
 
 
-        // app.get('/api/user', async (req, res) => {
-        //     const query = {}
-        //     if (req.query.userId) {
-        //         query._id = new ObjectId(req.query.userId)
-        //     }
-        //     const result = await usersCollections.find(query).toArray()
-        //     res.send(result)
-        // })
+
         app.get('/api/user/:id', verifyToken, async (req, res) => {
             const { id } = req.params
             const user = await usersCollections.findOne({ _id: new ObjectId(id) })
@@ -384,36 +361,6 @@ const run = async () => {
             res.send(result);
         });
 
-        // app.get("/api/users", async (req, res) => {
-        //     const { email } = req.query;
-
-        //     // single user by email
-        //     if (email) {
-        //         const user = await usersCollections.findOne({
-        //             email
-        //         });
-
-        //         return res.send(user);
-        //     }
-
-        //     // all users
-        //     const result = await usersCollections.find().toArray();
-        //     res.send(result);
-        // });
-
-        // app.patch("/api/users/role/:id", async (req, res) => {
-        //     const { id } = req.params;
-        //     const { role } = req.body;
-
-        //     const result = await usersCollections.updateOne(
-        //         { _id: new ObjectId(id) },
-        //         {
-        //             $set: { role }
-        //         }
-        //     );
-
-        //     res.send(result);
-        // });
 
         app.patch("/api/user/role/:id", verifyToken, async (req, res) => {
             try {
