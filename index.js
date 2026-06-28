@@ -471,6 +471,39 @@ const run = async () => {
         })
 
 
+
+
+        app.patch("/api/user/init/:email", verifyToken, async (req, res) => {
+            const { email } = req.params;
+
+            const user = await usersCollections.findOne({ email });
+
+            if (!user) {
+                return res.status(404).send({
+                    message: "User not found"
+                });
+            }
+
+            if (!user.role || !user.plan) {
+                const result = await usersCollections.updateOne(
+                    { email },
+                    {
+                        $set: {
+                            role: "user",
+                            plan: "free_user"
+                        }
+                    }
+                );
+
+                return res.send(result);
+            }
+
+            res.send({
+                message: "Already initialized"
+            });
+        });
+
+
         console.log("MongoDB connected 🚀");
     } finally {
         // await client.close();
