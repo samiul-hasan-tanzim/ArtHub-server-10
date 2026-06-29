@@ -56,6 +56,25 @@ const verifyToken = async (req, res, next) => {
     }
 }
 
+const verifyToken2 = async (req, res, next) => {
+    const authHeader = req?.headers.authorization
+
+    if (!authHeader) {
+        return res.status(403).json({
+            message: "Forbidden - No token provided"
+        });
+    }
+    const token = authHeader.split(' ')[1]
+
+    if (token === `${process.env.TOKEN}`) {
+        return next();
+    }
+    return res.status(403).json({
+        message: "Forbidden - Invalid token"
+    });
+
+}
+
 
 
 
@@ -297,7 +316,7 @@ const run = async () => {
             }
 
             const currentPage = Number(page) || 1;
-            const artworkLimit = Number(limit) || 9;
+            const artworkLimit = Number(limit) || 12;
 
             const totalArtworks = await artWorkCollections.countDocuments(query);
             const totalPages = Math.ceil(totalArtworks / artworkLimit);
@@ -356,7 +375,18 @@ const run = async () => {
             res.send(user)
         })
 
+        app.get('/api/artist/:id', verifyToken2, async (req, res) => {
+            const { id } = req.params
+            const user = await usersCollections.findOne({ _id: new ObjectId(id) })
+            res.send(user)
+        })
+
         app.get("/api/users", verifyToken, async (req, res) => {
+            const result = await usersCollections.find().toArray();
+            res.send(result);
+        });
+
+        app.get("/api/users/noAuth", verifyToken2, async (req, res) => {
             const result = await usersCollections.find().toArray();
             res.send(result);
         });
